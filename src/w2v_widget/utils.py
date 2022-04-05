@@ -6,13 +6,33 @@ from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
+from collections import Counter
+from typing import List, Dict
+
+def calculate_inverse_frequency(docs:List[List[str]]) -> Dict:
+    
+    def word_if(word_count:int, total_count:int):
+        return 1e-3/(1e-3+word_count/total_count)
+    
+    all_words = [x for y in docs for x in y]
+
+    c = Counter(all_words)
+
+    total_count = len(all_words)
+    
+    return {k:word_if(v, total_count) for k,v in c.items()}
+
 class Doc2Vec:
-    def __init__(self, wv_model, word_if:Dict):
+    def __init__(self, wv_model, word_weights:Dict):
         self.wv_model = wv_model
-        self.word_if = word_if
+        self.word_weights = word_weights
     
     def calculate_doc2vec(self, doc):
-        return np.mean([self.wv_model.get_vector(token) for token in doc if token in self.wv_model], axis=0)
+        word_vectors = np.array([self.wv_model.get_vector(token) for token in doc if token in self.wv_model])
+        word_weights = np.array([self.word_weights[token] for token in doc if token in self.wv_model])
+        weighted_vectors = word_vectors*word_weights[:,np.newaxis]
+        
+        return np.mean(weighted_vectors, axis=0)
 
     def add_doc2vec(self, docs):
         self.doc2vec_dict = {key:self.calculate_doc2vec(doc) for key, doc in tqdm(enumerate(docs), total=len(docs)) if [token for token in doc if token in self.wv_model]}
