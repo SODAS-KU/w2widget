@@ -1,16 +1,14 @@
 # w2v_widget
 Widget for exploring and sampling words from text data through w2v
 
+
+## Notes
+We need [openTSNE](https://opentsne.readthedocs.io/en/latest/installation.html) to get doc2vec embedding of topic documents
+
 ## To-do:
 
-- Optimer checkbox-generering
-- 
 - Duplicates
 - Boliga-plot
-- Visited but not accepted
-- Not accept means decline
-- “Next” i similar
-- “Not” ???
 - Document sampling chronology
 - Document metadata
 - Write to file

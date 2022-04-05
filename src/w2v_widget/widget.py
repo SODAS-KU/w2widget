@@ -1,9 +1,9 @@
-from typing import List
-import ipywidgets as widgets
+from typing import List, Tuple
 import plotly.graph_objects as go
 from IPython.display import display
 from ipywidgets import Layout
-
+import ipywidgets as widgets
+import numpy as np
 
 class ClickResponsiveToggleButtons(widgets.ToggleButtons):
     def __init__(self, *args, **kwargs):
@@ -40,19 +40,25 @@ class WVWidget:
     def __init__(self, 
                  wv_model,
                  two_dim_word_embedding,
+                 dv_model,
                  two_dim_doc_embedding,
                  tokens_with_ws: List[List[str]], 
                  initial_search_words=[]
     ):
         # Store the w2v model
         self.wv_model = wv_model
-        # Add a function for fetching similar words filtered from a list of words
+        ## Add a function for fetching similar words filtered from a list of words
         self.wv_model.filtered_similar = lambda word, negative, _filter: [x for x in self.wv_model.most_similar(positive=word, negative=negative, topn=1000) if x[0] not in _filter][:10]
+        
+        # store the d2v model
+        self.dv_model = dv_model
         
         self.vocab = wv_model.index_to_key
         self.key_to_index = wv_model.key_to_index
+        
         self.two_dim_word_embedding = two_dim_word_embedding
-
+        self.two_dim_doc_embedding = two_dim_doc_embedding
+        
         # Store data
         self.tokens_with_ws = tokens_with_ws
 
@@ -73,12 +79,14 @@ class WVWidget:
     ### PLOTS ###
     #############
 
-    def generate_plot_figure(self, title):
+    def generate_plot_figure(self,
+                             title:str,
+                             xy_range:Tuple[Tuple[int, int], Tuple[int, int]]):
         """Function for creating FigureWidgets with specified title"""
 
         figure_widget = go.FigureWidget()
 
-        x_range, y_range = self.wv_get_axis_range()
+        x_range, y_range = xy_range
 
         figure_widget.update_xaxes(range=[min(x_range), max(x_range)])
 
@@ -202,20 +210,10 @@ class WVWidget:
 
     ### d2v ###
 
-    def get_doc_embedding_key_values(self, _filter):
-        selected_key_to_index = {
-            k: v for k, v in self.key_to_index.items() if k in _filter
-        }
-
-        keys = list(selected_key_to_index.keys())
-        values = list(selected_key_to_index.values())
-
-        return keys, values
-
     def dv_get_axis_range(self):
         x_range, y_range = (
-            self.wv_model.dv.two_dim_word_embedding[:, 0],
-            self.wv_model.dv.two_dim_word_embedding[:, 1],
+            self.two_dim_doc_embedding[:, 0],
+            self.two_dim_doc_embedding[:, 1],
         )
         return x_range, y_range
 
@@ -223,34 +221,43 @@ class WVWidget:
 
         self.dv_figure_widget.data = ()
 
-        topic_words = self.topic_words
+        topic_words = self.topic_words.copy()
 
-        x, y = self.wv_model.dv.get_TSNE_reduced_doc(topic_words)
+        if topic_words:
+            x, y = self.dv_model.get_TSNE_reduced_doc(topic_words)[0]
 
-        self.dv_figure_widget.add_trace(
-            go.Scatter(
-                x=x,
-                y=y,
-                name="Topic",
-                text=topic_words,
-                mode="markers",
-                marker=dict(color="orange"),
+            self.dv_figure_widget.add_trace(
+                go.Scatter(
+                    x=[x],
+                    y=[y],
+                    name="Topic",
+                    text=str(topic_words),
+                    mode="markers",
+                    marker=dict(color="orange"),
+                )
             )
-        )
 
-        query_keys, query_values = self.wv_model.dv.most_similar(topic_words)
-
-        self.dv_figure_widget.add_trace(
-            go.Scatter(
-                x=self.two_dim_word_embedding[query_values, 0],
-                y=self.two_dim_word_embedding[query_values, 1],
-                name="Documents",
-                text=query_keys,
-                mode="markers",
-                marker=dict(color="blue"),
+            query_values = [x[0] for x in self.dv_model.most_similar(topic_words)]
+            query_keys = np.array(self.tokens_with_ws)[query_values]
+            
+            self.dv_figure_widget.add_trace(
+                go.Scatter(
+                    x=self.two_dim_doc_embedding[query_values, 0],
+                    y=self.two_dim_doc_embedding[query_values, 1],
+                    name="Documents",
+                    text=query_keys,
+                    mode="markers",
+                    marker=dict(color="blue"),
+                )
             )
-        )
 
+    # def generate_plot_tab():
+    #     tab_contents = []
+    #     children = [widgets.Text(description=name) for name in tab_contents]
+    #     tab = widgets.Tab()
+    #     tab.children = children
+    #     tab.titles = [str(i) for i in range(len(children))]
+    
     ################
     ### ELEMENTS ###
     ################
@@ -399,7 +406,7 @@ class WVWidget:
         self.topic_menu.options = self.topic_words
 
     def create_widgets(self):
-
+        
         # Add word
         self.new_search = widgets.Combobox(
             placeholder="Type a word",
@@ -418,13 +425,16 @@ class WVWidget:
         self.topic_menu = self.generate_topic_menu()
 
         self.wv_figure_widget = self.generate_plot_figure(
-            "Embedding of word2vec-space"
+            "Embedding of word2vec-space",
+            xy_range = self.wv_get_axis_range()
         )
         self.add_word_embedding_traces()
+        
         self.dv_figure_widget = self.generate_plot_figure(
-            "Embedding of doc2vec-space"
+            "Embedding of doc2vec-space",
+            xy_range = self.dv_get_axis_range()
         )
-        # self.add_document_embedding_traces()
+        self.add_document_embedding_traces()
 
         self.load_button = widgets.Button(
             description="Next",
@@ -466,7 +476,7 @@ class WVWidget:
         )
         self.topic_remove_button.on_click(self.on_topic_remove_button_clicked)
 
-        # Save subsample query
+        # Save subsample topic
         self.save_topic = widgets.Text(placeholder="Name of topic", disabled=False)
         self.save_topic.on_submit(self.on_save_topic_submit)
 
@@ -475,6 +485,10 @@ class WVWidget:
             button_style="info",
         )
         self.toggle_buttons.on_click(self.on_topic_buttons_clicked)
+        
+        self.plot_tab = widgets.Tab(layout=Layout(margin="0px 50px 0px 0px"))
+        self.plot_tab.children = (self.wv_figure_widget, self.dv_figure_widget)
+        self.plot_tab._titles = {0:"Words", 1:"Documents"}
 
         self.threshold = widgets.IntText(
             value=5,
@@ -784,13 +798,9 @@ option {
                                 [widgets.HTML("<b>Topic words</b>"), self.topic_menu],
                                 layout=Layout(overflow_x="hidden"),
                             ),
-                            widgets.Tab(
-                                [self.wv_figure_widget, self.dv_figure_widget],
-                                _titles={
-                                    k: v for k, v in enumerate(["Words", "Documents"])
-                                },
-                                layout=Layout(margin="0px 50px 0px 0px"),
-                            ),
+                            
+                            self.plot_tab,
+                                                                   
                             widgets.VBox(
                                 [
                                     self.load_button,
