@@ -1,3 +1,4 @@
+import re
 from typing import List, Tuple
 import plotly.graph_objects as go
 from IPython.display import display
@@ -88,9 +89,9 @@ class WVWidget:
 
         x_range, y_range = xy_range
 
-        figure_widget.update_xaxes(range=[min(x_range), max(x_range)])
+        figure_widget.update_xaxes(range=[min(x_range)*1.05, max(x_range)*1.05])
 
-        figure_widget.update_yaxes(range=[min(y_range), max(y_range)])
+        figure_widget.update_yaxes(range=[min(y_range)*1.05, max(y_range)*1.05])
 
         figure_widget.update_layout(
             margin=dict(l=0, r=0, t=50, b=0),
@@ -238,18 +239,26 @@ class WVWidget:
             )
 
             query_values = [x[0] for x in self.dv_model.most_similar(topic_words)]
-            query_keys = np.array(self.tokens_with_ws)[query_values]
+            query_keys = np.array(self.tokens_with_ws, dtype='object')[query_values]
             
             self.dv_figure_widget.add_trace(
                 go.Scatter(
                     x=self.two_dim_doc_embedding[query_values, 0],
                     y=self.two_dim_doc_embedding[query_values, 1],
                     name="Documents",
-                    text=query_keys,
+                    text=[f'Document index: {i}<br><br>{self.html_format_text(text, topic_words)}' for i, text in zip(query_values, query_keys.tolist())],
+                    hoverinfo='text',
+                    hoverlabel = dict(namelength = 50),
                     mode="markers",
                     marker=dict(color="blue"),
                 )
             )
+
+    def preprocess_doc(self, doc:str):
+        text = doc.replace('\n', ' ').replace('  ', ' ')
+        text = '<br>'.join(re.findall('.{1,90}(?=(?<!span)\s(?!<span>)|\Z)', text))
+        text = text.replace('<br> ', '<br>')
+        return re.search('.{1,500}(?=\s|\Z)', text)[0] + '...'
 
     # def generate_plot_tab():
     #     tab_contents = []
@@ -435,6 +444,10 @@ class WVWidget:
             xy_range = self.dv_get_axis_range()
         )
         self.add_document_embedding_traces()
+        
+        self.plot_tab = widgets.Tab(children = [self.wv_figure_widget, self.dv_figure_widget], layout=Layout(margin="0px 50px 0px 0px"))
+        self.plot_tab._titles = {0:"Words", 1:"Documents"}
+        self.plot_tab.observe(self.on_tabs_change, names='selected_index')
 
         self.load_button = widgets.Button(
             description="Next",
@@ -485,10 +498,6 @@ class WVWidget:
             button_style="info",
         )
         self.toggle_buttons.on_click(self.on_topic_buttons_clicked)
-        
-        self.plot_tab = widgets.Tab(layout=Layout(margin="0px 50px 0px 0px"))
-        self.plot_tab.children = (self.wv_figure_widget, self.dv_figure_widget)
-        self.plot_tab._titles = {0:"Words", 1:"Documents"}
 
         self.threshold = widgets.IntText(
             value=5,
@@ -568,8 +577,6 @@ class WVWidget:
         if change:
             self.update_output()
 
-        
-        
     def on_text_input_submit(self, change):
         self.search_words.append(change.value)
         self.topic_words.append(change.value)
@@ -637,6 +644,9 @@ class WVWidget:
         self.skip_words = list(topic['skip_words'])
 
         self.update_output()
+
+    def on_tabs_change(self, change):
+        self.dv_figure_widget.layout.autosize = True
 
     def on_generate_sample_button_click(self, change):
         self.document_output.value = ""
@@ -706,14 +716,12 @@ option {
     ### UTILS ###
     #############
 
-    def html_format_text(self, text, word_list):
-        doc = self.nlp(text.replace("-", " "))
+    def html_format_text(self, tokens_with_ws: List[str], word_list: List[str]):
         return "".join(
             [
-                token
-                if len(token) == 0 or token.lower() not in word_list
+                token if len(token) == 0 or token.lower() not in word_list
                 else f'<span style="color:teal">{token}</span>'
-                for token in doc
+                for token in tokens_with_ws
             ]
         )
 
