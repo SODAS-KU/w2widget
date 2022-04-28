@@ -1,3 +1,4 @@
+from fileinput import filename
 import re
 from typing import List, Tuple
 import plotly.graph_objects as go
@@ -5,6 +6,7 @@ from IPython.display import display, Javascript
 from ipywidgets import Layout
 import ipywidgets as widgets
 import numpy as np
+import json
 
 
 class ClickResponsiveToggleButtons(widgets.ToggleButtons):
@@ -547,6 +549,15 @@ class WVWidget:
         self.document_sample_button = widgets.Button(description="Sample")
         self.document_sample_button.on_click(self.on_document_sample_button_click)
 
+        self.filename = widgets.Text(placeholder="Filename", disabled=False)
+        self.filename.on_submit(self.on_filename_submit)
+
+        self.save_file = widgets.Button(
+            description="Save file",
+            tooltip="Save the topics as a json file with the specified file name",
+        )
+        self.save_file.on_click(self.on_save_file_click)
+
         self.document_output = widgets.HTML()
 
         self.css = self.generate_css()
@@ -563,6 +574,7 @@ class WVWidget:
 
         # Word embedding plot
         self.add_word_embedding_traces()
+        self.add_document_embedding_traces()
 
     #################
     ### CALLBACKS ###
@@ -675,7 +687,7 @@ class WVWidget:
 
     def on_tabs_change(self, change):
         self.dv_figure_widget.layout.autosize = True
-        self.add_document_embedding_traces()
+        self.update_output()
 
     def on_generate_sample_button_click(self, change):
         self.document_output.value = ""
@@ -705,6 +717,23 @@ class WVWidget:
             self.document_output.value = (
                 "<b>No more documents with the specified threshold and query</b>"
             )
+
+    def on_filename_submit(self, change):
+        filename = change.value
+
+        if len(filename) < 1:
+            return
+        else:
+            with open(change.value + ".json", "w") as f:
+                json.dump(self.topics, f)
+
+    def on_save_file_click(self, change):
+        filename = self.filename.value
+        if len(filename) < 1:
+            return
+        else:
+            with open(filename + ".json", "w") as f:
+                json.dump(self.topics, f)
 
     ###########
     ### CSS ###
@@ -883,29 +912,46 @@ option {
                         overflow_x="hidden",
                     ),
                 ),
-                widgets.VBox(
+                widgets.HBox(
                     [
-                        widgets.HTML("""<h2>Document sample</h2>"""),
-                        widgets.HTML(
-                            "Sample documents from either query or topic word list"
-                        ),
-                        widgets.HBox(
-                            [
-                                self.threshold,
-                                self.document_sample_buttons,
-                                self.generate_sample_button,
-                            ]
-                        ),
-                        self.n_samples,
                         widgets.VBox(
                             [
-                                self.document_sample_button,
-                                widgets.Box(
-                                    [self.document_output],
-                                    layout=Layout(height="200px", display="overflow"),
+                                widgets.HTML("""<h2>Document sample</h2>"""),
+                                widgets.HTML(
+                                    "Sample documents from either query or topic word list"
                                 ),
-                            ],
-                            layout=Layout(margin="20px", width="650px"),
+                                widgets.HBox(
+                                    [
+                                        self.threshold,
+                                        self.document_sample_buttons,
+                                        self.generate_sample_button,
+                                    ]
+                                ),
+                                self.n_samples,
+                                widgets.VBox(
+                                    [
+                                        self.document_sample_button,
+                                        widgets.Box(
+                                            [self.document_output],
+                                            layout=Layout(
+                                                height="200px", display="overflow"
+                                            ),
+                                        ),
+                                    ],
+                                    layout=Layout(margin="20px", width="650px"),
+                                ),
+                            ]
+                        ),
+                        widgets.VBox(
+                            [
+                                widgets.HTML("""<h2>Save topics</h2>"""),
+                                widgets.HBox(
+                                    [
+                                        self.filename,
+                                        self.save_file,
+                                    ]
+                                ),
+                            ]
                         ),
                     ]
                 ),
@@ -914,9 +960,11 @@ option {
 
         display(self.view)
 
+        # Javascript injection to help plotly graph fit it's container
         display(
             Javascript(
                 """
+                // Javascript injection to help plotly graph fit it's container
                 selector = "div.js-plotly-plot:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(1) > div:nth-child(3) > a:nth-child(4)";
                 
                 function waitForElementToDisplay(selector, callback, checkFrequencyInMs, timeoutInMs) {
