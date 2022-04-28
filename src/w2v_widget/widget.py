@@ -1,10 +1,11 @@
 import re
 from typing import List, Tuple
 import plotly.graph_objects as go
-from IPython.display import display
+from IPython.display import display, Javascript
 from ipywidgets import Layout
 import ipywidgets as widgets
 import numpy as np
+
 
 class ClickResponsiveToggleButtons(widgets.ToggleButtons):
     def __init__(self, *args, **kwargs):
@@ -37,29 +38,37 @@ class ClickResponsiveToggleButtons(widgets.ToggleButtons):
         if content.get("event", "") == "click":
             self._click_handlers(self)
 
+
 class WVWidget:
-    def __init__(self, 
-                 wv_model,
-                 two_dim_word_embedding,
-                 dv_model,
-                 two_dim_doc_embedding,
-                 tokens_with_ws: List[List[str]], 
-                 initial_search_words=[]
+    def __init__(
+        self,
+        wv_model,
+        two_dim_word_embedding,
+        dv_model,
+        two_dim_doc_embedding,
+        tokens_with_ws: List[List[str]],
+        initial_search_words=[],
     ):
         # Store the w2v model
         self.wv_model = wv_model
         ## Add a function for fetching similar words filtered from a list of words
-        self.wv_model.filtered_similar = lambda word, negative, _filter: [x for x in self.wv_model.most_similar(positive=word, negative=negative, topn=1000) if x[0] not in _filter][:10]
-        
+        self.wv_model.filtered_similar = lambda word, negative, _filter: [
+            x
+            for x in self.wv_model.most_similar(
+                positive=word, negative=negative, topn=1000
+            )
+            if x[0] not in _filter
+        ][:10]
+
         # store the d2v model
         self.dv_model = dv_model
-        
+
         self.vocab = wv_model.index_to_key
         self.key_to_index = wv_model.key_to_index
-        
+
         self.two_dim_word_embedding = two_dim_word_embedding
         self.two_dim_doc_embedding = two_dim_doc_embedding
-        
+
         # Store data
         self.tokens_with_ws = tokens_with_ws
 
@@ -80,18 +89,18 @@ class WVWidget:
     ### PLOTS ###
     #############
 
-    def generate_plot_figure(self,
-                             title:str,
-                             xy_range:Tuple[Tuple[int, int], Tuple[int, int]]):
+    def generate_plot_figure(
+        self, title: str, xy_range: Tuple[Tuple[int, int], Tuple[int, int]]
+    ):
         """Function for creating FigureWidgets with specified title"""
 
         figure_widget = go.FigureWidget()
 
         x_range, y_range = xy_range
 
-        figure_widget.update_xaxes(range=[min(x_range)*1.05, max(x_range)*1.05])
+        figure_widget.update_xaxes(range=[min(x_range) * 1.05, max(x_range) * 1.05])
 
-        figure_widget.update_yaxes(range=[min(y_range)*1.05, max(y_range)*1.05])
+        figure_widget.update_yaxes(range=[min(y_range) * 1.05, max(y_range) * 1.05])
 
         figure_widget.update_layout(
             margin=dict(l=0, r=0, t=50, b=0),
@@ -122,7 +131,10 @@ class WVWidget:
         return keys, values
 
     def wv_get_axis_range(self):
-        x_range, y_range = (self.two_dim_word_embedding[:, 0], self.two_dim_word_embedding[:, 1])
+        x_range, y_range = (
+            self.two_dim_word_embedding[:, 0],
+            self.two_dim_word_embedding[:, 1],
+        )
         return x_range, y_range
 
     def add_word_embedding_traces(self):
@@ -131,7 +143,7 @@ class WVWidget:
 
         # For similar but not selected
         search_keys, search_values = self.get_word_embedding_key_values(
-            _filter = self.get_text_labels()
+            _filter=self.get_text_labels()
         )
 
         self.wv_figure_widget.add_trace(
@@ -176,7 +188,7 @@ class WVWidget:
                 marker=dict(color="orange"),
             )
         )
-        
+
         # For skipped
         topic_keys, topic_values = self.get_word_embedding_key_values(
             _filter=self.skip_words
@@ -192,7 +204,7 @@ class WVWidget:
                 marker=dict(color="grey"),
             )
         )
-        
+
         # For negative
         topic_keys, topic_values = self.get_word_embedding_key_values(
             _filter=self.negative_words
@@ -239,26 +251,29 @@ class WVWidget:
             )
 
             query_values = [x[0] for x in self.dv_model.most_similar(topic_words)]
-            query_keys = np.array(self.tokens_with_ws, dtype='object')[query_values]
-            
+            query_keys = np.array(self.tokens_with_ws, dtype="object")[query_values]
+
             self.dv_figure_widget.add_trace(
                 go.Scatter(
                     x=self.two_dim_doc_embedding[query_values, 0],
                     y=self.two_dim_doc_embedding[query_values, 1],
                     name="Documents",
-                    text=[f'Document index: {i}<br><br>{self.html_format_text(text, topic_words)}' for i, text in zip(query_values, query_keys.tolist())],
-                    hoverinfo='text',
-                    hoverlabel = dict(namelength = 50),
+                    text=[
+                        f"Document index: {i}<br><br>{self.html_format_text(text, topic_words)}"
+                        for i, text in zip(query_values, query_keys.tolist())
+                    ],
+                    hoverinfo="text",
+                    hoverlabel=dict(namelength=50),
                     mode="markers",
                     marker=dict(color="blue"),
                 )
             )
 
-    def preprocess_doc(self, doc:str):
-        text = doc.replace('\n', ' ').replace('  ', ' ')
-        text = '<br>'.join(re.findall('.{1,90}(?=(?<!span)\s(?!<span>)|\Z)', text))
-        text = text.replace('<br> ', '<br>')
-        return re.search('.{1,500}(?=\s|\Z)', text)[0] + '...'
+    def preprocess_doc(self, doc: str):
+        text = doc.replace("\n", " ").replace("  ", " ")
+        text = "<br>".join(re.findall(".{1,90}(?=(?<!span)\s(?!<span>)|\Z)", text))
+        text = text.replace("<br> ", "<br>")
+        return re.search(".{1,500}(?=\s|\Z)", text)[0] + "..."
 
     # def generate_plot_tab():
     #     tab_contents = []
@@ -266,7 +281,7 @@ class WVWidget:
     #     tab = widgets.Tab()
     #     tab.children = children
     #     tab.titles = [str(i) for i in range(len(children))]
-    
+
     ################
     ### ELEMENTS ###
     ################
@@ -278,7 +293,9 @@ class WVWidget:
                     value=f"{key[0]} ({round(key[1], 2)})",
                 )
                 for key in self.wv_model.filtered_similar(
-                    self.search_words, self.negative_words, self.topic_words + self.skip_words
+                    self.search_words,
+                    self.negative_words,
+                    self.topic_words + self.skip_words,
                 )
             ]
         else:
@@ -298,16 +315,15 @@ class WVWidget:
                     indent=False,
                 )
                 for key in self.wv_model.filtered_similar(
-                    self.search_words, self.negative_words, self.topic_words + self.skip_words
+                    self.search_words,
+                    self.negative_words,
+                    self.topic_words + self.skip_words,
                 )
             ]
         else:
             return [
                 widgets.Checkbox(
-                    value=False, 
-                    description="", 
-                    disabled=True, 
-                    indent=False
+                    value=False, description="", disabled=True, indent=False
                 )
                 for key in range(10)
             ]
@@ -321,20 +337,19 @@ class WVWidget:
                     indent=False,
                 )
                 for key in self.wv_model.filtered_similar(
-                    self.search_words, self.negative_words, self.topic_words + self.skip_words
+                    self.search_words,
+                    self.negative_words,
+                    self.topic_words + self.skip_words,
                 )
             ]
         else:
             return [
                 widgets.Checkbox(
-                    value=False, 
-                    description="", 
-                    disabled=True, 
-                    indent=False
+                    value=False, description="", disabled=True, indent=False
                 )
                 for key in range(10)
             ]
-    
+
     def generate_skip_checkboxes(self):
         if len(self.search_words) > 0:
             return [
@@ -344,31 +359,43 @@ class WVWidget:
                     indent=False,
                 )
                 for key in self.wv_model.filtered_similar(
-                    self.search_words, self.negative_words, self.topic_words + self.skip_words
+                    self.search_words,
+                    self.negative_words,
+                    self.topic_words + self.skip_words,
                 )
             ]
         else:
             return [
                 widgets.Checkbox(
-                    value=False, 
-                    description="", 
-                    disabled=True, 
-                    indent=False
+                    value=False, description="", disabled=True, indent=False
                 )
                 for key in range(10)
             ]
+
     def get_text_labels(self):
         return [label.value.split()[0] for label in self.checkboxes_text if label.value]
-    
+
     def get_accepted(self):
-        return [x.value.split()[0] for n, x in enumerate(self.checkboxes_text) if self.accept_checkboxes[n].value]
-    
+        return [
+            x.value.split()[0]
+            for n, x in enumerate(self.checkboxes_text)
+            if self.accept_checkboxes[n].value
+        ]
+
     def get_not(self):
-        return [x.value.split()[0] for n, x in enumerate(self.checkboxes_text) if self.not_checkboxes[n].value]
+        return [
+            x.value.split()[0]
+            for n, x in enumerate(self.checkboxes_text)
+            if self.not_checkboxes[n].value
+        ]
 
     def get_skipped(self):
-        return [x.value.split()[0] for n, x in enumerate(self.checkboxes_text) if self.skip_checkboxes[n].value]
-    
+        return [
+            x.value.split()[0]
+            for n, x in enumerate(self.checkboxes_text)
+            if self.skip_checkboxes[n].value
+        ]
+
     def update_checkboxes(self):
         new_words = self.wv_model.filtered_similar(
             self.search_words, self.negative_words, self.topic_words + self.skip_words
@@ -381,13 +408,13 @@ class WVWidget:
             if i < len(new_words):
                 key = new_words[i]
                 self.checkboxes_text[i].value = f"{key[0]} ({round(key[1], 2)})"
-                
+
                 self.accept_checkboxes[i].disabled = False
                 self.not_checkboxes[i].disabled = False
                 self.skip_checkboxes[i].disabled = False
             else:
                 self.checkboxes_text[i].value = ""
-                
+
                 self.accept_checkboxes[i].disabled = True
                 self.not_checkboxes[i].disabled = True
                 self.skip_checkboxes[i].disabled = True
@@ -415,7 +442,7 @@ class WVWidget:
         self.topic_menu.options = self.topic_words
 
     def create_widgets(self):
-        
+
         # Add word
         self.new_search = widgets.Combobox(
             placeholder="Type a word",
@@ -429,25 +456,26 @@ class WVWidget:
         self.accept_checkboxes = self.generate_accept_checkboxes()
         self.not_checkboxes = self.generate_not_checkboxes()
         self.skip_checkboxes = self.generate_skip_checkboxes()
-        
+
         self.search_menu = self.generate_search_menu()
         self.topic_menu = self.generate_topic_menu()
 
         self.wv_figure_widget = self.generate_plot_figure(
-            "Embedding of word2vec-space",
-            xy_range = self.wv_get_axis_range()
+            "Embedding of word2vec-space", xy_range=self.wv_get_axis_range()
         )
         self.add_word_embedding_traces()
-        
+
         self.dv_figure_widget = self.generate_plot_figure(
-            "Embedding of doc2vec-space",
-            xy_range = self.dv_get_axis_range()
+            "Embedding of doc2vec-space", xy_range=self.dv_get_axis_range()
         )
         self.add_document_embedding_traces()
-        
-        self.plot_tab = widgets.Tab(children = [self.wv_figure_widget, self.dv_figure_widget], layout=Layout(margin="0px 50px 0px 0px"))
-        self.plot_tab._titles = {0:"Words", 1:"Documents"}
-        self.plot_tab.observe(self.on_tabs_change, names='selected_index')
+
+        self.plot_tab = widgets.Tab(
+            children=[self.wv_figure_widget, self.dv_figure_widget],
+            layout=Layout(margin="0px 50px 0px 0px"),
+        )
+        self.plot_tab._titles = {0: "Words", 1: "Documents"}
+        self.plot_tab.observe(self.on_tabs_change, names="selected_index")
 
         self.load_button = widgets.Button(
             description="Next",
@@ -547,7 +575,7 @@ class WVWidget:
         self.new_search.value = ""
         self.negative_words = []
         self.skip_words = []
-        
+
         self.update_output()
 
     def on_load_button_clicked(self, change):
@@ -558,22 +586,22 @@ class WVWidget:
         accepted_words = self.get_accepted()
         not_words = self.get_not()
         skip_words = self.get_skipped()
-        
+
         if accepted_words:
             # Update the search words based on the selected boxes
             self.search_words += accepted_words
 
             self.topic_words += accepted_words
             change = True
-        
+
         if not_words:
             self.negative_words += not_words
             change = True
-        
+
         if skip_words:
             self.skip_words += skip_words
             change = True
-        
+
         if change:
             self.update_output()
 
@@ -619,9 +647,9 @@ class WVWidget:
     def on_save_topic_submit(self, change):
         topic = change.value.title()
         self.topics[topic] = {
-            'search_words' : list(self.search_words),
-            'negative_words' : list(self.negative_words),
-            'skip_words' : list(self.skip_words),
+            "search_words": list(self.search_words),
+            "negative_words": list(self.negative_words),
+            "skip_words": list(self.skip_words),
         }
 
         self.save_topic.value = ""
@@ -634,19 +662,20 @@ class WVWidget:
 
     def on_topic_buttons_clicked(self, change):
         topic = self.topics[change.value]
-        
-        topic_words = list(topic['search_words'])
+
+        topic_words = list(topic["search_words"])
 
         self.search_words = topic_words
         self.topic_words = topic_words.copy()
 
-        self.negative_words = list(topic['negative_words'])
-        self.skip_words = list(topic['skip_words'])
+        self.negative_words = list(topic["negative_words"])
+        self.skip_words = list(topic["skip_words"])
 
         self.update_output()
 
     def on_tabs_change(self, change):
         self.dv_figure_widget.layout.autosize = True
+        self.add_document_embedding_traces()
 
     def on_generate_sample_button_click(self, change):
         self.document_output.value = ""
@@ -689,8 +718,8 @@ class WVWidget:
 }
 
 .widget-select-multiple {
-    margin-right: 100px;
-    max-width: 200px
+    max-width: 200px;
+    width:auto;
 }
 
 .widget-output {
@@ -719,7 +748,8 @@ option {
     def html_format_text(self, tokens_with_ws: List[str], word_list: List[str]):
         return "".join(
             [
-                token if len(token) == 0 or token.lower() not in word_list
+                token
+                if len(token) == 0 or token.lower() not in word_list
                 else f'<span style="color:teal">{token}</span>'
                 for token in tokens_with_ws
             ]
@@ -736,156 +766,180 @@ option {
         # Create widget elements
         self.create_widgets()
 
-        display(
-            widgets.VBox(
-                [
-                    self.css,
-                    widgets.HTML(
-                        """<h1>w2v sampler</h1>
+        self.wv_figure_widget.layout.autosize = True
+
+        self.view = widgets.VBox(
+            [
+                self.css,
+                widgets.HTML(
+                    """<h1>w2widget</h1>
 <p>This interface helps you build a topics from a word2vec model.</p>
 <p>"""
-                    ),
-                    widgets.VBox(
-                        [
-                            widgets.HTML("Start a new query from the specified word"),
-                            self.new_search,
-                            widgets.HTML("</br>"),
-                        ]
-                    ),
-                    widgets.GridBox(
-                        children=[
-                            
-                            widgets.GridBox(
-                                [
-                                    widgets.VBox(
-                                        [
-                                            widgets.HTML("<b>Similar words</b>"),
-                                            *self.checkboxes_text
-                                        ],
-                                        layout=Layout(overflow_x="hidden")
-                                    ),
-                                    widgets.VBox(
-                                        [
-                                            widgets.HTML("<b>Accept</b>"),
-                                            *self.accept_checkboxes
-                                        ],
-                                        layout=Layout(overflow_x="hidden")
-                                    ),
-                                    widgets.VBox(
-                                        [
-                                            widgets.HTML("<b>Not</b>"),
-                                            *self.not_checkboxes
-                                        ],
-                                        layout=Layout(overflow_x="hidden")
-                                    ),
-                                    widgets.VBox(
-                                        [
-                                            widgets.HTML("<b>Skip</b>"),
-                                            *self.skip_checkboxes
-                                        ],
-                                        layout=Layout(overflow_x="hidden")
-                                    )
-                                ],
-                                layout=Layout(
-                                    width="90%",
-                                    grid_template_rows="auto",
-                                    grid_template_columns="50% 15% 15% 20%",
-                                    grid_template_areas="""
+                ),
+                widgets.VBox(
+                    [
+                        widgets.HTML("Start a new query from the specified word"),
+                        self.new_search,
+                        widgets.HTML("</br>"),
+                    ]
+                ),
+                widgets.GridBox(
+                    children=[
+                        widgets.GridBox(
+                            [
+                                widgets.VBox(
+                                    [
+                                        widgets.HTML("<b>Similar words</b>"),
+                                        *self.checkboxes_text,
+                                    ],
+                                    layout=Layout(overflow_x="hidden"),
+                                ),
+                                widgets.VBox(
+                                    [
+                                        widgets.HTML("<b>Accept</b>"),
+                                        *self.accept_checkboxes,
+                                    ],
+                                    layout=Layout(overflow_x="hidden"),
+                                ),
+                                widgets.VBox(
+                                    [widgets.HTML("<b>Not</b>"), *self.not_checkboxes],
+                                    layout=Layout(overflow_x="hidden"),
+                                ),
+                                widgets.VBox(
+                                    [
+                                        widgets.HTML("<b>Skip</b>"),
+                                        *self.skip_checkboxes,
+                                    ],
+                                    layout=Layout(overflow_x="hidden"),
+                                ),
+                            ],
+                            layout=Layout(
+                                width="100%",
+                                grid_template_rows="auto",
+                                grid_template_columns="50% 15% 15% 20%",
+                                grid_template_areas="""
                                     "a b c d"
                                     """,
-                                    grid_gap="20px 10px",
-                                    overflow_x="hidden",
+                                grid_gap="20px 10px",
+                                overflow_x="hidden",
+                                padding="0 10% 0 0",
+                            ),
+                        ),
+                        widgets.VBox(
+                            [widgets.HTML("<b>Query words</b>"), self.search_menu],
+                            layout=Layout(overflow_x="hidden"),
+                        ),
+                        widgets.VBox(
+                            [widgets.HTML("<b>Topic words</b>"), self.topic_menu],
+                            layout=Layout(overflow_x="hidden"),
+                        ),
+                        self.plot_tab,
+                        widgets.VBox(
+                            [
+                                self.load_button,
+                                widgets.HTML("Add a word:"),
+                                self.text_input,
+                            ],
+                            layout=Layout(overflow_x="hidden"),
+                        ),
+                        widgets.VBox(
+                            [
+                                self.query_select_button,
+                                self.query_remove_button,
+                                widgets.HTML("Save the current query:"),
+                                self.save_query,
+                            ],
+                            layout=Layout(overflow_x="hidden"),
+                        ),
+                        widgets.VBox(
+                            [
+                                self.topic_query_button,
+                                self.topic_remove_button,
+                                widgets.HTML("Save the current topic:"),
+                                self.save_topic,
+                            ],
+                            layout=Layout(overflow_x="hidden"),
+                        ),
+                        widgets.VBox(
+                            [
+                                widgets.HTML(
+                                    "<h2>Topics</h2>",
+                                    layout=Layout(margin="-20px 0px 0px 0px"),
                                 ),
-                            ),                                
-                                
-                            widgets.VBox(
-                                [widgets.HTML("<b>Query words</b>"), self.search_menu],
-                                layout=Layout(overflow_x="hidden"),
-                            ),
-                            widgets.VBox(
-                                [widgets.HTML("<b>Topic words</b>"), self.topic_menu],
-                                layout=Layout(overflow_x="hidden"),
-                            ),
-                            
-                            self.plot_tab,
-                                                                   
-                            widgets.VBox(
-                                [
-                                    self.load_button,
-                                    widgets.HTML("Add a word:"),
-                                    self.text_input,
-                                ],
-                                layout=Layout(overflow_x="hidden"),
-                            ),
-                            widgets.VBox(
-                                [
-                                    self.query_select_button,
-                                    self.query_remove_button,
-                                    widgets.HTML("Save the current query:"),
-                                    self.save_query,
-                                ],
-                                layout=Layout(overflow_x="hidden"),
-                            ),
-                            widgets.VBox(
-                                [
-                                    self.topic_query_button,
-                                    self.topic_remove_button,
-                                    widgets.HTML("Save the current topic:"),
-                                    self.save_topic,
-                                ],
-                                layout=Layout(overflow_x="hidden"),
-                            ),
-                            widgets.VBox(
-                                [
-                                    widgets.HTML(
-                                        "<h2>Topics</h2>",
-                                        layout=Layout(margin="-20px 0px 0px 0px"),
-                                    ),
-                                    self.toggle_buttons,
-                                ],
-                                layout=Layout(overflow_x="hidden"),
-                            ),
-                        ],
-                        layout=Layout(
-                            width="100%",
-                            grid_template_rows="auto auto auto",
-                            grid_template_columns="30% 15% 15% 40%",
-                            grid_template_areas="""
+                                self.toggle_buttons,
+                            ],
+                            layout=Layout(overflow_x="hidden"),
+                        ),
+                    ],
+                    layout=Layout(
+                        width="100%",
+                        grid_template_rows="auto auto auto",
+                        grid_template_columns="30% 15% 15% 40%",
+                        grid_template_areas="""
                             "a b c d"
                             "e f g h "
                             """,
-                            grid_gap="20px 10px",
-                            overflow_x="hidden",
+                        grid_gap="20px 10px",
+                        overflow_x="hidden",
+                    ),
+                ),
+                widgets.VBox(
+                    [
+                        widgets.HTML("""<h2>Document sample</h2>"""),
+                        widgets.HTML(
+                            "Sample documents from either query or topic word list"
                         ),
-                    ),
-                    widgets.VBox(
-                        [
-                            widgets.HTML("""<h2>Document sample</h2>"""),
-                            widgets.HTML(
-                                "Sample documents from either query or topic word list"
-                            ),
-                            widgets.HBox(
-                                [
-                                    self.threshold,
-                                    self.document_sample_buttons,
-                                    self.generate_sample_button,
-                                ]
-                            ),
-                            self.n_samples,
-                            widgets.VBox(
-                                [
-                                    self.document_sample_button,
-                                    widgets.Box(
-                                        [self.document_output],
-                                        layout=Layout(
-                                            height="200px", display="overflow"
-                                        ),
-                                    ),
-                                ],
-                                layout=Layout(margin="20px", width="650px"),
-                            ),
-                        ]
-                    ),
-                ]
+                        widgets.HBox(
+                            [
+                                self.threshold,
+                                self.document_sample_buttons,
+                                self.generate_sample_button,
+                            ]
+                        ),
+                        self.n_samples,
+                        widgets.VBox(
+                            [
+                                self.document_sample_button,
+                                widgets.Box(
+                                    [self.document_output],
+                                    layout=Layout(height="200px", display="overflow"),
+                                ),
+                            ],
+                            layout=Layout(margin="20px", width="650px"),
+                        ),
+                    ]
+                ),
+            ]
+        )
+
+        display(self.view)
+
+        display(
+            Javascript(
+                """
+                selector = "div.js-plotly-plot:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(4) > div:nth-child(1) > div:nth-child(3) > a:nth-child(4)";
+                
+                function waitForElementToDisplay(selector, callback, checkFrequencyInMs, timeoutInMs) {
+                    var startTimeInMs = Date.now();
+                    (function loopSearch() {
+                        if (document.querySelector(selector) != null) {
+                        callback();
+                        return;
+                        }
+                        else {
+                        setTimeout(function () {
+                            if (timeoutInMs && Date.now() - startTimeInMs > timeoutInMs)
+                            return;
+                            loopSearch();
+                        }, checkFrequencyInMs);
+                        }
+                    })();
+                }
+                
+                waitForElementToDisplay(selector,function(){document.querySelector(selector).click()},1000,9000);
+                console.warn('test')
+            """
             )
         )
+
+        self.wv_figure_widget.layout.autosize = True
