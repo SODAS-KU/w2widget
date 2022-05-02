@@ -1,15 +1,21 @@
 import json
 import re
+import tempfile
 import textwrap
 import time
 from itertools import cycle
-from typing import List, Tuple
+from pathlib import Path
+from typing import List, Tuple, Union
 
 import ipywidgets as widgets
 import numpy as np
 import plotly.graph_objects as go
 from IPython.display import Javascript, display
 from ipywidgets import Layout
+
+TEMP_FOLDER = Path(tempfile.gettempdir()) / "w2widget"
+
+Path(TEMP_FOLDER).mkdir(exist_ok=True)
 
 
 class ClickResponsiveToggleButtons(widgets.ToggleButtons):
@@ -53,6 +59,7 @@ class WVWidget:
         two_dim_doc_embedding,
         tokens_with_ws: List[List[str]],
         initial_search_words=[],
+        save_file_path: Union[str, Path] = None,
     ):
         # Store the w2v model
         self.wv_model = wv_model
@@ -89,6 +96,11 @@ class WVWidget:
         self.skip_words = []
         self.queries = {}
         self.topics = {}
+
+        if not save_file_path:
+            self.save_file_path = Path(tempfile.mkstemp(dir=str(TEMP_FOLDER))[1])
+        else:
+            self.save_file_path = Path(save_file_path).absolute
 
     #############
     ### PLOTS ###
@@ -539,7 +551,13 @@ class WVWidget:
         self.document_sample_button = widgets.Button(description="Sample")
         self.document_sample_button.on_click(self.on_document_sample_button_click)
 
-        self.filename = widgets.Text(placeholder="Filename", disabled=False)
+        self.filename = widgets.Text(
+            placeholder="Filename",
+            value=""
+            if self.save_file_path.parent == TEMP_FOLDER
+            else self.save_file_path.name,
+            disabled=False,
+        )
         self.filename.on_submit(self.on_filename_submit)
 
         self.save_file = widgets.Button(
@@ -579,6 +597,7 @@ class WVWidget:
         self.skip_words = []
 
         self.update_output()
+        self.save_data()
 
     def on_load_button_clicked(self, change):
         """
@@ -711,7 +730,9 @@ class WVWidget:
     def on_document_sample_button_click(self, change):
         try:
             sample = next(self.document_samples)
-            self.document_output.value = f"Document index: {sample[0]}</br></br>{sample[1]}"
+            self.document_output.value = (
+                f"Document index: {sample[0]}</br></br>{sample[1]}"
+            )
         except StopIteration:
             self.document_output.value = (
                 "<b>No more documents with the specified threshold and query</b>"
@@ -727,16 +748,24 @@ class WVWidget:
                 json.dump(self.topics, f)
         time.sleep(0.3)
         self.filename.value = ""
+        
 
     def on_save_file_click(self, change):
         filename = self.filename.value
         if len(filename) < 1:
             return
         else:
-            with open(filename + ".json", "w") as f:
-                json.dump(self.topics, f)
+            self.save_data(filename)
         time.sleep(0.3)
         self.filename.value = ""
+
+    def save_data(self, filename=None):
+        if filename:
+            with open(filename + ".json", "w") as f:
+                json.dump(self.topics, f)
+        else:
+            with open(self.save_file_path + ".json", "w") as f:
+                json.dump(self.topics, f)
 
     ###########
     ### CSS ###
