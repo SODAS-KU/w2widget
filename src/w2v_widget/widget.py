@@ -1,3 +1,5 @@
+import textwrap
+
 from fileinput import filename
 import re
 from typing import List, Tuple
@@ -265,7 +267,7 @@ class WVWidget:
                         for i, text in zip(query_values, query_keys.tolist())
                     ],
                     hoverinfo="text",
-                    hoverlabel=dict(namelength=50),
+                    hoverlabel=dict(namelength=-1),
                     mode="markers",
                     marker=dict(color="blue"),
                 )
@@ -775,14 +777,16 @@ option {
     #############
 
     def html_format_text(self, tokens_with_ws: List[str], word_list: List[str]):
-        return "".join(
+        return " ".join(
             [
                 token
                 if len(token) == 0 or token.lower() not in word_list
                 else f'<span style="color:teal">{token}</span>'
-                for token in tokens_with_ws
+                for token in " </br> ".join(
+                    textwrap.wrap("".join(tokens_with_ws), max_lines=7)
+                ).split()
             ]
-        )
+        ).replace(" </br> ", "</br>")
 
     ###############
     ### DISPALY ###
