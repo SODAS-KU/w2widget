@@ -1,14 +1,15 @@
-import textwrap
-
-from fileinput import filename
+import json
 import re
+import textwrap
+import time
+from itertools import cycle
 from typing import List, Tuple
-import plotly.graph_objects as go
-from IPython.display import display, Javascript
-from ipywidgets import Layout
+
 import ipywidgets as widgets
 import numpy as np
-import json
+import plotly.graph_objects as go
+from IPython.display import Javascript, display
+from ipywidgets import Layout
 
 
 class ClickResponsiveToggleButtons(widgets.ToggleButtons):
@@ -263,7 +264,7 @@ class WVWidget:
                     y=self.two_dim_doc_embedding[query_values, 1],
                     name="Documents",
                     text=[
-                        f"Document index: {i}<br><br>{self.html_format_text(text, topic_words)}"
+                        f"Document index: {i}</br></br>{self.html_format_text(text, topic_words, text_wrap=True)}"
                         for i, text in zip(query_values, query_keys.tolist())
                     ],
                     hoverinfo="text",
@@ -272,19 +273,6 @@ class WVWidget:
                     marker=dict(color="blue"),
                 )
             )
-
-    def preprocess_doc(self, doc: str):
-        text = doc.replace("\n", " ").replace("  ", " ")
-        text = "<br>".join(re.findall(".{1,90}(?=(?<!span)\s(?!<span>)|\Z)", text))
-        text = text.replace("<br> ", "<br>")
-        return re.search(".{1,500}(?=\s|\Z)", text)[0] + "..."
-
-    # def generate_plot_tab():
-    #     tab_contents = []
-    #     children = [widgets.Text(description=name) for name in tab_contents]
-    #     tab = widgets.Tab()
-    #     tab.children = children
-    #     tab.titles = [str(i) for i in range(len(children))]
 
     ################
     ### ELEMENTS ###
@@ -620,8 +608,11 @@ class WVWidget:
             self.update_output()
 
     def on_text_input_submit(self, change):
-        self.search_words.append(change.value)
-        self.topic_words.append(change.value)
+        word = change.value
+        if word not in self.topic_words:
+            self.topic_words.append(change.value)
+        elif word not in self.search_words:
+            self.search_words.append(change.value)
 
         self.text_input.value = ""
         self.update_output()
@@ -693,28 +684,34 @@ class WVWidget:
 
     def on_generate_sample_button_click(self, change):
         self.document_output.value = ""
+
         if self.document_sample_buttons.value == "Query":
             documents = [
                 (i, self.html_format_text(document, self.search_words))
                 for i, document in enumerate(self.tokens_with_ws)
-                if len([token for token in document if token in self.search_words])
-                > self.threshold.value
+                if len(
+                    [token for token in document if token.lower() in self.search_words]
+                )
+                >= self.threshold.value
             ]
-            self.document_samples = iter(documents)
+            self.document_samples = cycle(documents)
         elif self.document_sample_buttons.value == "Topic":
             documents = [
                 (i, self.html_format_text(document, self.topic_words))
                 for i, document in enumerate(self.tokens_with_ws)
-                if len([token for token in document if token in self.topic_words])
-                > self.threshold.value
+                if len(
+                    [token for token in document if token.lower() in self.topic_words]
+                )
+                >= self.threshold.value
             ]
-            self.document_samples = iter(documents)
+            self.document_samples = cycle(documents)
+
         self.n_samples.value = f"Number of documents in sample: {len(documents)}"
 
     def on_document_sample_button_click(self, change):
         try:
             sample = next(self.document_samples)
-            self.document_output.value = f"Index: {sample[0]}</br>{sample[1]}"
+            self.document_output.value = f"Document index: {sample[0]}</br></br>{sample[1]}"
         except StopIteration:
             self.document_output.value = (
                 "<b>No more documents with the specified threshold and query</b>"
@@ -728,6 +725,8 @@ class WVWidget:
         else:
             with open(change.value + ".json", "w") as f:
                 json.dump(self.topics, f)
+        time.sleep(0.3)
+        self.filename.value = ""
 
     def on_save_file_click(self, change):
         filename = self.filename.value
@@ -736,6 +735,8 @@ class WVWidget:
         else:
             with open(filename + ".json", "w") as f:
                 json.dump(self.topics, f)
+        time.sleep(0.3)
+        self.filename.value = ""
 
     ###########
     ### CSS ###
@@ -776,17 +777,33 @@ option {
     ### UTILS ###
     #############
 
-    def html_format_text(self, tokens_with_ws: List[str], word_list: List[str]):
-        return " ".join(
-            [
-                token
-                if len(token) == 0 or token.lower() not in word_list
-                else f'<span style="color:teal">{token}</span>'
-                for token in " </br> ".join(
-                    textwrap.wrap("".join(tokens_with_ws), max_lines=7)
-                ).split()
-            ]
-        ).replace(" </br> ", "</br>")
+    def html_format_text(
+        self, tokens_with_ws: List[str], word_list: List[str], text_wrap=False
+    ):
+
+        if text_wrap:
+            text = " ".join(
+                [
+                    token
+                    if len(token) == 0
+                    or re.sub(r"[^\w]", "", token).lower() not in word_list
+                    else f'<span style="color:orange">{token}</span>'
+                    for token in " </br> ".join(
+                        textwrap.wrap("".join(tokens_with_ws), max_lines=7)
+                    ).split()
+                ]
+            ).replace(" </br> ", "</br>")
+
+        else:
+            text = "".join(
+                [
+                    token
+                    if len(token) == 0 or token.lower() not in word_list
+                    else f'<span style="background:yellow;opacity:0.8;z-index:-1">{token}</span>'
+                    for token in tokens_with_ws
+                ]
+            )
+        return text
 
     ###############
     ### DISPALY ###
@@ -916,6 +933,7 @@ option {
                         overflow_x="hidden",
                     ),
                 ),
+                widgets.HTML("<hr>"),
                 widgets.HBox(
                     [
                         widgets.VBox(
