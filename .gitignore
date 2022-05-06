@@ -1,7 +1,8 @@
 #
 tests/
 
-
+#
+.vscode/
 
 ### Standard Python .gitignore ###
 
