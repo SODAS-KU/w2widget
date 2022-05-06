@@ -1,4 +1,4 @@
-# w2v_widget
+# w2widget
 Widget for exploring and sampling words from text data through word2vec models in order to construct topic dictionaries.
 
 ## Package content
