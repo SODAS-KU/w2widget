@@ -9,18 +9,50 @@ The package contains two modules:
 
 ### Doc2Vec
 
+This module helps with calculating and handling doc2vec. The approach applied is that every document's vector is calculated by taking a weighted (ie. based on inverse frequencies) average of the document's word vectors.
+
 ```python
 from w2widget.doc2vec import calculate_inverse_frequency, Doc2Vec
 
+# Calculate word weigts from inverse frequency
+word_weights = calculate_inverse_frequency(document_tokens)
+
+# Initiate the model
+dv_model = Doc2Vec(wv_model, word_weights)
+
+# Add documents and calculated the document vectors
+dv_model.add_doc2vec(document_tokens)
+
+# reduce the dimensions
+dv_model.reduce_dimensions()
+
+# Store the embeddings
+dv_tsne_embedding = dv_model.TSNE_embedding_array
 ```
 
 ### Widget
 
+This widget module displays the results from:
+- A gensim word2vec model,
+- it's 2-dimensional embedding (ie. TSNE).
+- The custom implemented doc2vec model,
+- it's 2-dimensional embedding (ie. TSNE).
+- A list of tokenized documents with whitespaces and
+- optionally a list of initial search words
+
 ```python
 from w2widget.widget import Widget
 
+wv_widget = Widget(
+    wv_model=wv_model,
+    two_dim_word_embedding=TSNE_embedding,
+    dv_model=dv_model,
+    two_dim_doc_embedding=dv_tsne_embedding,
+    tokens_with_ws=tokens_with_ws,
+    initial_search_words=[],
+)
+
+wv_widget.display_widget()
 ```
 
-
-## Notes
-We need [openTSNE](https://opentsne.readthedocs.io/en/latest/installation.html) to get doc2vec embedding of topic documents
+You can save the topics to a `json` file from the widget, or access them from the dictionary stored in `wv_widget.topics`.
