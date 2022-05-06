@@ -1,3 +1,7 @@
+"""
+Messy file for generating data for widget example
+"""
+
 import pickle
 from functools import partial
 from typing import List
@@ -62,6 +66,11 @@ document_tokens = [
 
 tokens_with_ws = [tokenizer.tokenize_with_ws(doc) for doc in docs]
 
+
+with open("data/tokens_with_ws.pkl", "wb") as f:
+    pickle.dump(tokens_with_ws, f)
+
+
 ## Train word2vec model
 
 w2v = Word2Vec()
@@ -75,8 +84,6 @@ wv_model = Word2Vec(
     epochs=10,
     min_count=2,
 ).wv
-
-wv_model.most_similar("oil")
 
 
 ## Reduce dimensions
@@ -92,6 +99,12 @@ TSNE_embedding = TSNE(
 
 two_dim_word_vectors = TSNE_embedding.transform(pca_embedding)
 
+with open("data/wv_model.pkl", "wb") as f:
+    pickle.dump(wv_model, f)
+
+with open("data/TSNE_embedding.pkl", "wb") as f:
+    pickle.dump(TSNE_embedding, f)
+
 ## doc2vec
 
 word_weights = calculate_inverse_frequency(document_tokens)
@@ -105,17 +118,8 @@ dv_model.reduce_dimensions()
 dv_tsne_embedding = dv_model.TSNE_embedding_array
 
 
-with open("data/wv_model.pkl", "wb") as f:
-    pickle.dump(wv_model, f)
-
-with open("data/TSNE_embedding.pkl", "wb") as f:
-    pickle.dump(TSNE_embedding, f)
-
 with open("data/dv_model.pkl", "wb") as f:
     pickle.dump(dv_model, f)
 
 with open("data/dv_tsne_embedding.pkl", "wb") as f:
     pickle.dump(dv_tsne_embedding, f)
-
-with open("data/tokens_with_ws.pkl", "wb") as f:
-    pickle.dump(tokens_with_ws, f)
