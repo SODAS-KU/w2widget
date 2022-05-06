@@ -51,7 +51,7 @@ from w2widget.widget import Widget
 
 wv_widget = Widget(
     wv_model=wv_model,
-    two_dim_word_embedding=TSNE_embedding,
+    two_dim_word_embedding=wv_tsne_embedding,
     dv_model=dv_model,
     two_dim_doc_embedding=dv_tsne_embedding,
     tokens_with_ws=tokens_with_ws,
