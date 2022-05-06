@@ -3,9 +3,15 @@ Widget for exploring and sampling words from text data through word2vec models i
 
 ## Package content
 
-The package contains two modules:
+The `w2widget` package contains two modules:
 - `doc2vec.py`
 - `widget.py`
+
+## Examples
+
+In the `widget_example.ipynb` you can play with the widget from pretrained data from [Reuters](http://kdd.ics.uci.edu/databases/reuters21578/reuters21578.html) dataset.
+
+If you want to see an example of the data-workflow generating the necessary input, check out `workflow_example.ipynb`.
 
 ### Doc2Vec
 
