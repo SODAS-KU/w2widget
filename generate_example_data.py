@@ -15,6 +15,7 @@ from sklearn.decomposition import PCA
 from w2widget.doc2vec import Doc2Vec, calculate_inverse_frequency
 
 import json
+
 # import nltk
 # nltk.download('twitter_samples')
 
@@ -67,7 +68,7 @@ document_tokens = [
 
 tokens_with_ws = [tokenizer.tokenize_with_ws(doc) for doc in docs]
 
-print("Saving tokens with white spaces")
+print("\nSaving tokens with white spaces...\n")
 
 with open("data/tokens_with_ws.pkl", "wb") as f:
     pickle.dump(tokens_with_ws, f)
@@ -100,12 +101,12 @@ TSNE_embedding = TSNE(
 
 wv_tsne_word_embedding = TSNE_embedding.transform(pca_embedding)
 
-print("Saving wv_model")
+print("\nSaving wv_model...\n")
 with open("data/wv_model.pkl", "wb") as f:
     pickle.dump(wv_model, f)
 
-print("Saving wv_tsne embeddings")
-with open("data/wv_tsne_word_embedding.pkl", "wb") as f:
+print("\nSaving wv_tsne embeddings...\n")
+with open("data/wv_tsne_embedding.pkl", "wb") as f:
     pickle.dump(wv_tsne_word_embedding, f)
 
 ## doc2vec
@@ -120,10 +121,10 @@ dv_model.reduce_dimensions()
 
 dv_tsne_embedding = dv_model.TSNE_embedding_array
 
-print("Saving dv_model")
+print("\nSaving dv_model...\n")
 with open("data/dv_model.pkl", "wb") as f:
     pickle.dump(dv_model, f)
 
-print("Saving dv_tsne embeddings")
+print("\nSaving dv_tsne embeddings...\n")
 with open("data/dv_tsne_embedding.pkl", "wb") as f:
     pickle.dump(dv_tsne_embedding, f)
