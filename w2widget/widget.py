@@ -50,7 +50,7 @@ class ClickResponsiveToggleButtons(widgets.ToggleButtons):
             self._click_handlers(self)
 
 
-class WVWidget:
+class Widget:
     def __init__(
         self,
         wv_model,
@@ -630,7 +630,7 @@ class WVWidget:
         word = change.value
         if word not in self.topic_words:
             self.topic_words.append(change.value)
-        elif word not in self.search_words:
+        if word not in self.search_words:
             self.search_words.append(change.value)
 
         self.text_input.value = ""
@@ -748,7 +748,6 @@ class WVWidget:
                 json.dump(self.topics, f)
         time.sleep(0.3)
         self.filename.value = ""
-        
 
     def on_save_file_click(self, change):
         filename = self.filename.value
