@@ -671,6 +671,7 @@ class Widget:
     def on_save_topic_submit(self, change):
         topic = change.value.title()
         self.topics[topic] = {
+            "topic_words": list(self.topic_words),
             "search_words": list(self.search_words),
             "negative_words": list(self.negative_words),
             "skip_words": list(self.skip_words),
@@ -687,10 +688,8 @@ class Widget:
     def on_topic_buttons_clicked(self, change):
         topic = self.topics[change.value]
 
-        topic_words = list(topic["search_words"])
-
-        self.search_words = topic_words
-        self.topic_words = topic_words.copy()
+        self.search_words = list(topic["search_words"])
+        self.topic_words = list(topic["topic_words"])
 
         self.negative_words = list(topic["negative_words"])
         self.skip_words = list(topic["skip_words"])
