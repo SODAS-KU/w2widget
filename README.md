@@ -50,11 +50,11 @@ This widget module displays the results from:
 from w2widget.widget import Widget
 
 wv_widget = Widget(
-    wv_model=wv_model,
-    two_dim_word_embedding=wv_tsne_embedding,
-    dv_model=dv_model,
-    two_dim_doc_embedding=dv_tsne_embedding,
-    tokens_with_ws=tokens_with_ws,
+    wv_model,
+    two_dim_word_embedding,
+    tokens_with_ws
+    dv_model=None,
+    two_dim_doc_embedding=None,
     initial_search_words=[],
 )
 

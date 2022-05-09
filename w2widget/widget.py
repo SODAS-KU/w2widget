@@ -55,9 +55,9 @@ class Widget:
         self,
         wv_model,
         two_dim_word_embedding,
-        dv_model,
-        two_dim_doc_embedding,
         tokens_with_ws: List[List[str]],
+        dv_model=None,
+        two_dim_doc_embedding=None,
         initial_search_words=[],
         save_file_path: Union[str, Path] = None,
     ):
@@ -72,13 +72,13 @@ class Widget:
             if x[0] not in _filter
         ][:10]
 
-        # store the d2v model
-        self.dv_model = dv_model
-
         self.vocab = wv_model.index_to_key
         self.key_to_index = wv_model.key_to_index
 
         self.two_dim_word_embedding = two_dim_word_embedding
+
+        # store the d2v model
+        self.dv_model = dv_model
         self.two_dim_doc_embedding = two_dim_doc_embedding
 
         # Store data
@@ -469,17 +469,21 @@ class Widget:
         )
         self.add_word_embedding_traces()
 
-        self.dv_figure_widget = self.generate_plot_figure(
-            "Embedding of doc2vec-space", xy_range=self.dv_get_axis_range()
-        )
-        self.add_document_embedding_traces()
+        if self.dv_model:
+            self.dv_figure_widget = self.generate_plot_figure(
+                "Embedding of doc2vec-space", xy_range=self.dv_get_axis_range()
+            )
+            self.add_document_embedding_traces()
 
-        self.plot_tab = widgets.Tab(
-            children=[self.wv_figure_widget, self.dv_figure_widget],
-            layout=Layout(margin="0px 50px 0px 0px"),
-        )
-        self.plot_tab._titles = {0: "Words", 1: "Documents"}
-        self.plot_tab.observe(self.on_tabs_change, names="selected_index")
+            self.plot_tab = widgets.Tab(
+                children=[self.wv_figure_widget, self.dv_figure_widget],
+                layout=Layout(margin="0px 50px 0px 0px"),
+            )
+            self.plot_tab._titles = {0: "Words", 1: "Documents"}
+            self.plot_tab.observe(self.on_tabs_change, names="selected_index")
+        else:
+            self.plot_tab = widgets.Box((self.wv_figure_widget,))
+            self.plot_tab.layout = Layout(margin="0px 50px 0px 0px")
 
         self.load_button = widgets.Button(
             description="Next",
