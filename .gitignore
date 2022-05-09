@@ -1,8 +1,8 @@
 #
-tests/
-
-#
 .vscode/
+
+# Data
+data/npr/
 
 ### Standard Python .gitignore ###
 
