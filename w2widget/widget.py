@@ -58,7 +58,7 @@ class Widget:
         dv_model,
         two_dim_doc_embedding,
         tokens_with_ws: List[List[str]],
-        initial_search_words=[],
+        initial_search_words: List = None,
         save_file_path: Union[str, Path] = None,
     ):
         # Store the w2v model
@@ -85,14 +85,17 @@ class Widget:
         self.tokens_with_ws = tokens_with_ws
 
         # Store the search words
-        if type(initial_search_words) == str:
+        if isinstance(initial_search_words, str):
             self.search_words = [initial_search_words]
             self.topic_words = [initial_search_words]
+        elif initial_search_words == None:
+            self.search_words = []
+            self.topic_words = []
         else:
             self.search_words = initial_search_words
             self.topic_words = initial_search_words.copy()
 
-        self.negative_words = []
+        self.not_words = []
         self.skip_words = []
         self.queries = {}
         self.topics = {}
@@ -101,6 +104,35 @@ class Widget:
             self.save_file_path = Path(tempfile.mkstemp(dir=str(TEMP_FOLDER))[1])
         else:
             self.save_file_path = Path(save_file_path).absolute
+
+        # Widget elements:
+        self.checkboxes_text = None
+        self.accept_checkboxes = None
+        self.not_checkboxes = None
+        self.skip_checkboxes = None
+        self.search_menu = None
+        self.topic_menu = None
+        self.wv_figure_widget = None
+        self.dv_figure_widget = None
+        self.plot_tab = None
+        self.load_button = None
+        self.text_input = None
+        self.query_select_button = None
+        self.query_remove_button = None
+        self.save_query = None
+        self.topic_query_button = None
+        self.topic_remove_button = None
+        self.new_search = None
+        self.save_topic = None
+        self.toggle_buttons = None
+        self.threshold = None
+        self.document_sample_buttons = None
+        self.generate_sample_button = None
+        self.document_sample_button = None
+        self.filename = None
+        self.save_file = None
+        self.document_output = None
+        self.css = None
 
     #############
     ### PLOTS ###
@@ -224,7 +256,7 @@ class Widget:
 
         # For negative
         topic_keys, topic_values = self.get_word_embedding_key_values(
-            _filter=self.negative_words
+            _filter=self.not_words
         )
 
         self.wv_figure_widget.add_trace(
@@ -298,7 +330,7 @@ class Widget:
                 )
                 for key in self.wv_model.filtered_similar(
                     self.search_words,
-                    self.negative_words,
+                    self.not_words,
                     self.topic_words + self.skip_words,
                 )
             ]
@@ -320,7 +352,7 @@ class Widget:
                 )
                 for key in self.wv_model.filtered_similar(
                     self.search_words,
-                    self.negative_words,
+                    self.not_words,
                     self.topic_words + self.skip_words,
                 )
             ]
@@ -342,7 +374,7 @@ class Widget:
                 )
                 for key in self.wv_model.filtered_similar(
                     self.search_words,
-                    self.negative_words,
+                    self.not_words,
                     self.topic_words + self.skip_words,
                 )
             ]
@@ -364,7 +396,7 @@ class Widget:
                 )
                 for key in self.wv_model.filtered_similar(
                     self.search_words,
-                    self.negative_words,
+                    self.not_words,
                     self.topic_words + self.skip_words,
                 )
             ]
@@ -402,7 +434,7 @@ class Widget:
 
     def update_checkboxes(self):
         new_words = self.wv_model.filtered_similar(
-            self.search_words, self.negative_words, self.topic_words + self.skip_words
+            self.search_words, self.not_words, self.topic_words + self.skip_words
         )
 
         for i in range(10):
@@ -431,8 +463,30 @@ class Widget:
             disabled=False,
         )
 
+    def generate_not_menu(self):
+        return widgets.SelectMultiple(
+            options=[word for word in self.not_words],
+            value=[],
+            rows=18,
+            disabled=False,
+        )
+
+    def generate_skip_menu(self):
+        return widgets.SelectMultiple(
+            options=[word for word in self.skip_words],
+            value=[],
+            rows=18,
+            disabled=False,
+        )
+
     def update_search_menu(self):
         self.search_menu.options = self.search_words
+
+    def update_not_menu(self):
+        self.not_menu.options = self.not_words
+
+    def update_skip_menu(self):
+        self.skip_menu.options = self.skip_words
 
     def generate_topic_menu(self):
         return widgets.SelectMultiple(
@@ -462,6 +516,18 @@ class Widget:
         self.skip_checkboxes = self.generate_skip_checkboxes()
 
         self.search_menu = self.generate_search_menu()
+        self.not_menu = self.generate_not_menu()
+        self.skip_menu = self.generate_skip_menu()
+
+        self.choices_tab = widgets.Tab(
+            children=[self.search_menu, self.not_menu, self.skip_menu],
+            layout=Layout(margin="0px 50px 0px 0px"),
+        )
+        self.choices_tab.add_class("choices-tab")
+
+        self.choices_tab._titles = {0: "Query", 1: "Not", 2: "Skip"}
+        self.choices_tab.observe(self.on_choices_tab_change, names="selected_index")
+
         self.topic_menu = self.generate_topic_menu()
 
         self.wv_figure_widget = self.generate_plot_figure(
@@ -479,7 +545,7 @@ class Widget:
             layout=Layout(margin="0px 50px 0px 0px"),
         )
         self.plot_tab._titles = {0: "Words", 1: "Documents"}
-        self.plot_tab.observe(self.on_tabs_change, names="selected_index")
+        self.plot_tab.observe(self.on_plot_tab_change, names="selected_index")
 
         self.load_button = widgets.Button(
             description="Next",
@@ -574,10 +640,11 @@ class Widget:
         # Create new checkboxes based on the new most similar words
         self.update_checkboxes()
 
-        # Update search menu
+        # Update menus
         self.update_search_menu()
+        self.update_not_menu()
+        self.update_skip_menu()
 
-        # Update topic menu
         self.update_topic_menu()
 
         # Word embedding plot
@@ -593,7 +660,7 @@ class Widget:
         self.topic_words = [change.value]
 
         self.new_search.value = ""
-        self.negative_words = []
+        self.not_words = []
         self.skip_words = []
 
         self.update_output()
@@ -616,7 +683,7 @@ class Widget:
             change = True
 
         if not_words:
-            self.negative_words += not_words
+            self.not_words += not_words
             change = True
 
         if skip_words:
@@ -673,7 +740,7 @@ class Widget:
         self.topics[topic] = {
             "topic_words": list(self.topic_words),
             "search_words": list(self.search_words),
-            "negative_words": list(self.negative_words),
+            "not_words": list(self.not_words),
             "skip_words": list(self.skip_words),
         }
 
@@ -691,13 +758,17 @@ class Widget:
         self.search_words = list(topic["search_words"])
         self.topic_words = list(topic["topic_words"])
 
-        self.negative_words = list(topic["negative_words"])
+        self.not_words = list(topic["not_words"])
         self.skip_words = list(topic["skip_words"])
 
         self.update_output()
 
-    def on_tabs_change(self, change):
+    def on_plot_tab_change(self, change):
         self.dv_figure_widget.layout.autosize = True
+        self.update_output()
+
+    def on_choices_tab_change(self, change):
+        pass
         self.update_output()
 
     def on_generate_sample_button_click(self, change):
@@ -795,6 +866,14 @@ option {
 
 .widget-toggle-buttons {
     max-width:700px
+}
+
+div.choices-tab > * {
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding:0 !important;
+    margin:0 !important;
 }
 
 </style>"""
@@ -902,10 +981,7 @@ option {
                                 padding="0 10% 0 0",
                             ),
                         ),
-                        widgets.VBox(
-                            [widgets.HTML("<b>Query words</b>"), self.search_menu],
-                            layout=Layout(overflow_x="hidden"),
-                        ),
+                        self.choices_tab,
                         widgets.VBox(
                             [widgets.HTML("<b>Topic words</b>"), self.topic_menu],
                             layout=Layout(overflow_x="hidden"),
