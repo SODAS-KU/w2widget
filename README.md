@@ -33,7 +33,7 @@ dv_model.add_doc2vec(document_tokens)
 dv_model.reduce_dimensions()
 
 # Store the embeddings
-dv_tsne_embedding = dv_model.TSNE_embedding_array
+two_dim_doc_embedding = dv_model.TSNE_embedding_array
 ```
 
 ### Widget
