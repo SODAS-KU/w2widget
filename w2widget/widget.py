@@ -59,6 +59,7 @@ class Widget:
         dv_model=None,
         two_dim_doc_embedding=None,
         initial_search_words=[],
+        custom_description="",
         save_file_path: Union[str, Path] = None,
     ):
         # Store the w2v model
@@ -92,15 +93,17 @@ class Widget:
             self.search_words = initial_search_words
             self.topic_words = initial_search_words.copy()
 
-        self.negative_words = []
-        self.skip_words = []
-        self.queries = {}
-        self.topics = {}
+        self.custom_description = custom_description
 
         if not save_file_path:
             self.save_file_path = Path(tempfile.mkstemp(dir=str(TEMP_FOLDER))[1])
         else:
             self.save_file_path = Path(save_file_path).absolute
+
+        self.negative_words = []
+        self.skip_words = []
+        self.queries = {}
+        self.topics = {}
 
     #############
     ### PLOTS ###
@@ -853,9 +856,18 @@ option {
             [
                 self.css,
                 widgets.HTML(
-                    """<h1>w2widget</h1>
+                    f"""<h1>w2widget</h1>
 <p>This interface helps you build a topics from a word2vec model.</p>
-<p>"""
+<p>The workflow is build around 4 different elements:</p>
+<ul>
+    <li><u>Word similarities</u> calculated from queries.</li>
+    <li><u>Queries</u> consisting of <i>positive</i> and <i>negative</i> words.</li>
+    <li><u>Topics</u> consisting of all the words you have accepted.</li>
+    <li><u>Plot</u> visualizing the position of the word vectors in a two-dimensional space.</li>
+</ul>
+{self.custom_description}
+<hr>
+<h2>Topic generation</h2>"""
                 ),
                 widgets.VBox(
                     [
@@ -969,7 +981,7 @@ option {
                     [
                         widgets.VBox(
                             [
-                                widgets.HTML("""<h2>Document sample</h2>"""),
+                                widgets.HTML("""<h2>Document sampling</h2>"""),
                                 widgets.HTML(
                                     "Sample documents from either query or topic word list"
                                 ),
