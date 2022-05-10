@@ -1,8 +1,10 @@
 import json
+import math
 import re
 import tempfile
 import textwrap
 import time
+from functools import partial
 from itertools import cycle
 from pathlib import Path
 from typing import List, Tuple, Union
@@ -60,6 +62,7 @@ class Widget:
         two_dim_doc_embedding=None,
         initial_search_words=[],
         custom_description="",
+        custom_footer="",
         save_file_path: Union[str, Path] = None,
     ):
         # Store the w2v model
@@ -94,6 +97,7 @@ class Widget:
             self.topic_words = initial_search_words.copy()
 
         self.custom_description = custom_description
+        self.custom_footer = custom_footer
 
         if not save_file_path:
             self.save_file_path = Path(tempfile.mkstemp(dir=str(TEMP_FOLDER))[1])
@@ -448,6 +452,26 @@ class Widget:
     def update_topic_menu(self):
         self.topic_menu.options = self.topic_words
 
+    def add_checkbox_observe(self, n, checkboxes):
+        n_classes = len(checkboxes[0])
+        class_n = math.ceil((n + 1) / n_classes) - 1
+        children_n = n % n_classes
+        checkbox = [c for C in checkboxes for c in C][n]
+
+        checkboxes = checkboxes.copy()
+        checkboxes.pop(class_n)
+
+        observe_function = partial(
+            self.on_checkbox,
+            checkboxes=[checkbox[children_n] for checkbox in checkboxes],
+        )
+
+        checkbox.observe(observe_function)
+
+    def on_checkbox(self, c, checkboxes):
+        for checkbox in checkboxes:
+            checkbox.value = False
+
     def create_widgets(self):
 
         # Add word
@@ -460,9 +484,19 @@ class Widget:
         self.new_search.on_submit(self.on_new_search_submit)
 
         self.checkboxes_text = self.generate_checkboxes_text()
+
         self.accept_checkboxes = self.generate_accept_checkboxes()
         self.not_checkboxes = self.generate_not_checkboxes()
         self.skip_checkboxes = self.generate_skip_checkboxes()
+
+        checkboxes = [
+            self.accept_checkboxes,
+            self.not_checkboxes,
+            self.skip_checkboxes,
+        ]
+
+        for n in range(len([c for C in checkboxes for c in C])):
+            self.add_checkbox_observe(n, checkboxes)
 
         self.search_menu = self.generate_search_menu()
         self.topic_menu = self.generate_topic_menu()
@@ -504,7 +538,7 @@ class Widget:
         self.text_input.on_submit(self.on_text_input_submit)
 
         self.query_select_button = widgets.Button(
-            description="Select", tooltip="Use the selected words as query"
+            description="Filter", tooltip="Use the selected words as query"
         )
         self.query_select_button.on_click(self.on_query_select_button_clicked)
 
@@ -857,13 +891,17 @@ option {
                 self.css,
                 widgets.HTML(
                     f"""<h1>w2widget</h1>
-<p>This interface helps you build a topics from a word2vec model.</p>
-<p>The workflow is build around 4 different elements:</p>
+<p>Inspired by the <a href="https://journals.sagepub.com/doi/full/10.1177/20539517221080146">CALM framework</a>, this interface helps you build topics from a word2vec model.
+</br>
+This exercise may help the researcher in gaining insight in a large text corpus, and works best with a concurrent qualitative reading of the documents.
+</p>
+<p>The workflow in this widget is build around 5 different elements:</p>
 <ul>
     <li><u>Word similarities</u> calculated from queries.</li>
     <li><u>Queries</u> consisting of <i>positive</i> and <i>negative</i> words.</li>
     <li><u>Topics</u> consisting of all the words you have accepted.</li>
     <li><u>Plot</u> visualizing the position of the word vectors in a two-dimensional space.</li>
+    <li><u>Document sampling</u> sample documents from query or topic to get an understanding of the semantic context.</li>
 </ul>
 {self.custom_description}
 <hr>
@@ -1020,6 +1058,7 @@ option {
                         ),
                     ]
                 ),
+                widgets.HTML(self.custom_footer),
             ]
         )
 
