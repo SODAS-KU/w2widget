@@ -7,7 +7,7 @@ import time
 from functools import partial
 from itertools import cycle
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import ipywidgets as widgets
 import numpy as np
@@ -108,6 +108,17 @@ class Widget:
         self.skip_words = []
         self.queries = {}
         self.topics = {}
+
+        # Create widget elements
+        self.create_widgets()
+
+    def load_topics(self, topics: Dict):
+        self.topics = topics
+
+        for topic in topics:
+            if topic not in self.toggle_buttons.options:
+                self.toggle_buttons.options += tuple([topic])
+                self.toggle_buttons.tooltips += tuple([topic])
 
     #############
     ### PLOTS ###
@@ -669,13 +680,14 @@ class Widget:
 
     def on_text_input_submit(self, change):
         word = change.value
-        if word not in self.topic_words:
-            self.topic_words.append(change.value)
-        if word not in self.search_words:
-            self.search_words.append(change.value)
+        if word:
+            if word not in self.topic_words:
+                self.topic_words.append(change.value)
+            if word not in self.search_words:
+                self.search_words.append(change.value)
 
-        self.text_input.value = ""
-        self.update_output()
+            self.text_input.value = ""
+            self.update_output()
 
     def on_save_query_submit(self, change):
         self.queries[change.value] = list(self.search_words)
@@ -711,20 +723,22 @@ class Widget:
 
     def on_save_topic_submit(self, change):
         topic = change.value.title()
-        self.topics[topic] = {
-            "topic_words": list(self.topic_words),
-            "search_words": list(self.search_words),
-            "negative_words": list(self.negative_words),
-            "skip_words": list(self.skip_words),
-        }
 
-        self.save_topic.value = ""
+        if topic:
+            self.topics[topic] = {
+                "topic_words": list(self.topic_words),
+                "search_words": list(self.search_words),
+                "negative_words": list(self.negative_words),
+                "skip_words": list(self.skip_words),
+            }
 
-        if topic not in self.toggle_buttons.options:
-            self.toggle_buttons.options += tuple([topic])
-            self.toggle_buttons.tooltips += tuple([topic])
+            self.save_topic.value = ""
 
-        self.toggle_buttons.value = topic
+            if topic not in self.toggle_buttons.options:
+                self.toggle_buttons.options += tuple([topic])
+                self.toggle_buttons.tooltips += tuple([topic])
+
+            self.toggle_buttons.value = topic
 
     def on_topic_buttons_clicked(self, change):
         topic = self.topics[change.value]
@@ -881,8 +895,6 @@ option {
         """
         Initialize the widget with the provided search terms
         """
-        # Create widget elements
-        self.create_widgets()
 
         self.wv_figure_widget.layout.autosize = True
 

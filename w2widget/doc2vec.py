@@ -61,7 +61,10 @@ class Doc2Vec:
         self.doc2vec_dict = {
             key: self.calculate_doc2vec(doc)
             for key, doc in tqdm(
-                enumerate(docs), total=len(docs), desc="Calculating document vectors"
+                enumerate(docs),
+                total=len(docs),
+                smoothing=0,
+                desc="Calculating document vectors",
             )
             if [token for token in doc if token in self.wv_model]
         }

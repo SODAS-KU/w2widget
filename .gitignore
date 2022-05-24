@@ -2,7 +2,9 @@
 .vscode/
 
 # Data
-data/npr/
+*dv_model.pkl
+*dv_tsne_embedding.pkl
+*utterances.csv
 
 ### Standard Python .gitignore ###
 
