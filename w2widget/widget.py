@@ -7,7 +7,7 @@ import time
 from functools import partial
 from itertools import cycle
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, TypedDict
 
 import ipywidgets as widgets
 import numpy as np
@@ -18,6 +18,13 @@ from ipywidgets import Layout
 TEMP_FOLDER = Path(tempfile.gettempdir()) / "w2widget"
 
 Path(TEMP_FOLDER).mkdir(exist_ok=True)
+
+
+class Topic(TypedDict):
+    topic_words: list[str]
+    search_words: list[str]
+    negative_words: list[str]
+    skip_words: list[str]
 
 
 class ClickResponsiveToggleButtons(widgets.ToggleButtons):
@@ -112,7 +119,7 @@ class Widget:
         # Create widget elements
         self.create_widgets()
 
-    def load_topics(self, topics: Dict):
+    def load_topics(self, topics: Dict[str, Topic]):
         self.topics = topics
 
         for topic in topics:
