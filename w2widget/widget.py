@@ -7,7 +7,7 @@ import time
 from functools import partial
 from itertools import cycle
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, TypedDict
+from typing import Dict, List, Tuple, Union
 
 import ipywidgets as widgets
 import numpy as np
@@ -15,16 +15,11 @@ import plotly.graph_objects as go
 from IPython.display import Javascript, display
 from ipywidgets import Layout
 
+from w2widget.types import Topic
+
 TEMP_FOLDER = Path(tempfile.gettempdir()) / "w2widget"
 
 Path(TEMP_FOLDER).mkdir(exist_ok=True)
-
-
-class Topic(TypedDict):
-    topic_words: list[str]
-    search_words: list[str]
-    negative_words: list[str]
-    skip_words: list[str]
 
 
 class ClickResponsiveToggleButtons(widgets.ToggleButtons):
@@ -70,7 +65,8 @@ class Widget:
         initial_search_words=[],
         custom_description="",
         custom_footer="",
-        save_file_path: Union[str, Path] = None,
+        save_file_path: Union[str, Path, None] = None,
+        auto_save: bool = False,
     ):
         # Store the w2v model
         self.wv_model = wv_model
@@ -110,20 +106,32 @@ class Widget:
             self.save_file_path = Path(tempfile.mkstemp(dir=str(TEMP_FOLDER))[1])
         else:
             self.save_file_path = Path(save_file_path).absolute
+        self.auto_save = auto_save
 
         self.negative_words = []
         self.skip_words = []
         self.queries = {}
         self.topics = {}
+        self.current_topic = None
 
         # Create widget elements
         self.create_widgets()
 
-    def load_topics(self, topics: Dict[str, Topic]):
-        self.topics = topics
-
+    def load_topics(self, topics: Dict[str, Topic], vocab_filter=False):
+        """
+        Load topics from a dictionary of topics.
+        To filter words not in vocab set vocab_filter to True. This removes them from the
+        final topics, so if you need them afterwards, add them back in.
+        """
         for topic in topics:
-            if topic not in self.toggle_buttons.options:
+            if vocab_filter:
+                for key, words in topics[topic].items():
+                    topics[topic][key] = [word for word in words if word in self.vocab]
+
+            self.topics[topic.title()] = topics[topic]
+            if (
+                topic := topic.title()
+            ) not in self.toggle_buttons.options:  # TODO: Why do we do this check?
                 self.toggle_buttons.options += tuple([topic])
                 self.toggle_buttons.tooltips += tuple([topic])
 
@@ -641,7 +649,10 @@ class Widget:
 
         # Word embedding plot
         self.add_word_embedding_traces()
-        self.add_document_embedding_traces()
+        if self.dv_model:
+            self.add_document_embedding_traces()
+        if self.auto_save and self.current_topic:
+            self.add_topic(self.current_topic)
 
     #################
     ### CALLBACKS ###
@@ -654,6 +665,7 @@ class Widget:
         self.new_search.value = ""
         self.negative_words = []
         self.skip_words = []
+        self.current_topic = None
 
         self.update_output()
         self.save_data()
@@ -729,16 +741,11 @@ class Widget:
         self.update_output()
 
     def on_save_topic_submit(self, change):
-        topic = change.value.title()
+        topic = change.value.strip().title()
 
         if topic:
-            self.topics[topic] = {
-                "topic_words": list(self.topic_words),
-                "search_words": list(self.search_words),
-                "negative_words": list(self.negative_words),
-                "skip_words": list(self.skip_words),
-            }
-
+            self.current_topic = topic
+            self.add_topic(topic)
             self.save_topic.value = ""
 
             if topic not in self.toggle_buttons.options:
@@ -747,14 +754,25 @@ class Widget:
 
             self.toggle_buttons.value = topic
 
+    def add_topic(self, topic):
+        self.topics[topic] = {
+            "topic_words": list(self.topic_words),
+            "search_words": list(self.search_words),
+            "negative_words": list(self.negative_words),
+            "skip_words": list(self.skip_words),
+        }
+
     def on_topic_buttons_clicked(self, change):
-        topic = self.topics[change.value]
+        topic_name = change.value
+        topic = self.topics[topic_name]
 
         self.search_words = list(topic["search_words"])
         self.topic_words = list(topic["topic_words"])
 
         self.negative_words = list(topic["negative_words"])
         self.skip_words = list(topic["skip_words"])
+
+        self.current_topic = topic_name
 
         self.update_output()
 
@@ -819,12 +837,12 @@ class Widget:
         time.sleep(0.3)
         self.filename.value = ""
 
-    def save_data(self, filename=None):
+    def save_data(self, filename: Union[str, Path, None] = None):
         if filename:
             with open(filename + ".json", "w") as f:
                 json.dump(self.topics, f)
         else:
-            with open(self.save_file_path + ".json", "w") as f:
+            with open(str(self.save_file_path) + ".json", "w") as f:
                 json.dump(self.topics, f)
 
     ###########
