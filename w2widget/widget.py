@@ -92,7 +92,7 @@ class Widget:
         self.tokens_with_ws = tokens_with_ws
 
         # Store the search words
-        if type(initial_search_words) == str:
+        if isinstance(initial_search_words, str):
             self.search_words = [initial_search_words]
             self.topic_words = [initial_search_words]
         else:
@@ -188,7 +188,6 @@ class Widget:
         return x_range, y_range
 
     def add_word_embedding_traces(self):
-
         self.wv_figure_widget.data = ()
 
         # For similar but not selected
@@ -281,7 +280,6 @@ class Widget:
         return x_range, y_range
 
     def add_document_embedding_traces(self):
-
         self.dv_figure_widget.data = ()
 
         topic_words = self.topic_words.copy()
@@ -499,7 +497,6 @@ class Widget:
             checkbox.value = False
 
     def create_widgets(self):
-
         # Add word
         self.new_search = widgets.Combobox(
             placeholder="Type a word",
@@ -887,7 +884,6 @@ option {
     def html_format_text(
         self, tokens_with_ws: List[str], word_list: List[str], text_wrap=False
     ):
-
         if text_wrap:
             text = " ".join(
                 [

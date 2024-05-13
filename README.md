@@ -1,11 +1,16 @@
 # w2widget
+
 Widget for exploring and sampling words from text data through word2vec models in order to construct topic dictionaries.
 
-## Package content
+## Installation
 
-The `w2widget` package contains two modules:
-- `doc2vec.py`
-- `widget.py`
+Use `conda` to create a new environment and install the requirements
+
+```bash
+conda create -n w2widget python=3.9
+conda activate w2widget
+pip install -e .
+```
 
 ## Examples
 
@@ -16,6 +21,9 @@ If you want to see an example of the data-workflow generating the necessary inpu
 ### Doc2Vec
 
 This module helps with calculating and handling doc2vec. The approach applied is that every document's vector is calculated by taking a weighted (ie. based on inverse frequencies) average of the document's word vectors.
+
+> [!NOTE]
+> I recommend using a sentence-embedding model instead of the following approach.
 
 ```python
 from w2widget.doc2vec import calculate_inverse_frequency, Doc2Vec
@@ -39,6 +47,7 @@ two_dim_doc_embedding = dv_model.TSNE_embedding_array
 ### Widget
 
 This widget module displays the results from:
+
 - A gensim word2vec model,
 - it's 2-dimensional embedding (ie. TSNE).
 - The custom implemented doc2vec model,
@@ -62,3 +71,4 @@ wv_widget.display_widget()
 ```
 
 You can save the topics to a `json` file from the widget, or access them from the dictionary stored in `wv_widget.topics`.
+
